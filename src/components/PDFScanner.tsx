@@ -155,8 +155,8 @@ export function PDFScanner() {
     const validPdfs = getValidPdfs();
     const enabledQuestionTypes = getEnabledQuestionTypes();
     
-    if (validPdfs.length === 0 || !selectedExam || !selectedCourse || !slot.trim() || !part.trim() || enabledQuestionTypes.length === 0) {
-      toast.error('Please fill all fields: exam, course, slot, part, question types, and upload at least one PDF');
+    if (validPdfs.length === 0 || !selectedExam || !selectedCourse || enabledQuestionTypes.length === 0) {
+      toast.error('Please fill required fields: exam, course, question types, and upload at least one PDF');
       return;
     }
 
@@ -284,8 +284,8 @@ export function PDFScanner() {
         options: q.options && q.options.length > 0 ? q.options : null,
         course_id: selectedCourse,
         year: parseInt(year),
-        slot: slot,
-        part: part,
+        slot: slot.trim() || null,
+        part: part.trim() || null,
         correct_marks: config.correct_marks,
         incorrect_marks: config.incorrect_marks,
         skipped_marks: config.skipped_marks,
@@ -301,9 +301,7 @@ export function PDFScanner() {
       q.question_type &&
       ['MCQ', 'MSQ', 'NAT', 'Subjective'].includes(q.question_type) &&
       q.course_id &&
-      q.year && q.year > 2000 && q.year < 2030 &&
-      q.slot && q.slot.trim().length > 0 &&
-      q.part && q.part.trim().length > 0
+      q.year && q.year > 2000 && q.year < 2030
     );
 
     if (validQuestions.length === 0) {
@@ -323,8 +321,8 @@ export function PDFScanner() {
   };
 
   const saveAllToDatabase = async () => {
-    if (!selectedCourse || extractedQuestions.length === 0 || !slot.trim() || !part.trim()) {
-      toast.error('Please select course, fill slot/part, and extract questions first');
+    if (!selectedCourse || extractedQuestions.length === 0) {
+      toast.error('Please select course and extract questions first');
       return;
     }
 
@@ -810,7 +808,7 @@ export function PDFScanner() {
         <div className="flex gap-4 justify-center mb-8">
           <button
             onClick={scanAndExtractQuestions}
-            disabled={validPdfs.length === 0 || isScanning || !selectedExam || !selectedCourse || !slot.trim() || !part.trim() || enabledQuestionTypes.length === 0}
+            disabled={validPdfs.length === 0 || isScanning || !selectedExam || !selectedCourse || enabledQuestionTypes.length === 0}
             className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             <Eye className="w-5 h-5" />
@@ -820,7 +818,7 @@ export function PDFScanner() {
           {!autoSaveEnabled && (
             <button
               onClick={saveAllToDatabase}
-              disabled={extractedQuestions.length === 0 || isSaving || !selectedCourse || !slot.trim() || !part.trim() || enabledQuestionTypes.length === 0}
+              disabled={extractedQuestions.length === 0 || isSaving || !selectedCourse || enabledQuestionTypes.length === 0}
               className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               <Database className="w-5 h-5" />
