@@ -32,6 +32,7 @@ interface QuestionTypeConfig {
   partial_marks: number;
   time_minutes: number;
 }
+
 export function PDFScanner() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -149,6 +150,7 @@ export function PDFScanner() {
       i === index ? { ...config, [field]: value } : config
     ));
   };
+
   const scanAndExtractQuestions = async () => {
     const validPdfs = getValidPdfs();
     const enabledQuestionTypes = getEnabledQuestionTypes();
@@ -272,6 +274,7 @@ export function PDFScanner() {
     // Create a map for quick lookup of question type configs
     const typeConfigMap = new Map(enabledQuestionTypes.map(config => [config.type, config]));
     
+    const questionsToInsert = questions.map(q => {
       // Find the matching config for this question type, or use the first enabled type as fallback
       const config = typeConfigMap.get(q.question_type as any) || enabledQuestionTypes[0];
       
