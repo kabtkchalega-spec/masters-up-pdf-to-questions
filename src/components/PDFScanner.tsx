@@ -36,10 +36,12 @@ interface QuestionTypeConfig {
 export function PDFScanner() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [slots, setSlots] = useState<{id: string, slot_name: string}[]>([]);
+  const [parts, setParts] = useState<{id: string, part_name: string}[]>([]);
   const [selectedExam, setSelectedExam] = useState<string>('');
   const [selectedCourse, setSelectedCourse] = useState<string>('');
-  const [slot, setSlot] = useState<string>('');
-  const [part, setPart] = useState<string>('');
+  const [selectedSlot, setSelectedSlot] = useState<string>('');
+  const [selectedPart, setSelectedPart] = useState<string>('');
   const [questionTypeConfigs, setQuestionTypeConfigs] = useState<QuestionTypeConfig[]>([
     { type: 'MCQ', enabled: false, correct_marks: 4, incorrect_marks: -1, skipped_marks: 0, partial_marks: 0, time_minutes: 3 },
     { type: 'MSQ', enabled: false, correct_marks: 4, incorrect_marks: -2, skipped_marks: 0, partial_marks: 1, time_minutes: 3 },
@@ -72,6 +74,12 @@ export function PDFScanner() {
     }
   }, [selectedExam]);
 
+  React.useEffect(() => {
+    if (selectedCourse) {
+      loadSlotsAndParts(selectedCourse);
+    }
+  }, [selectedCourse]);
+
   const loadExams = async () => {
     try {
       const { data, error } = await supabase
@@ -100,6 +108,33 @@ export function PDFScanner() {
     } catch (error) {
       toast.error('Failed to load courses');
       console.error('Error loading courses:', error);
+    }
+  };
+
+  const loadSlotsAndParts = async (courseId: string) => {
+    try {
+      // Load slots
+      const { data: slotsData, error: slotsError } = await supabase
+        .from('slots')
+        .select('id, slot_name')
+        .eq('course_id', courseId)
+        .order('slot_name');
+      
+      if (slotsError) throw slotsError;
+      setSlots(slotsData || []);
+
+      // Load parts
+      const { data: partsData, error: partsError } = await supabase
+        .from('parts')
+        .select('id, part_name')
+        .eq('course_id', courseId)
+        .order('part_name');
+      
+      if (partsError) throw partsError;
+      setParts(partsData || []);
+    } catch (error) {
+      toast.error('Failed to load slots and parts');
+      console.error('Error loading slots and parts:', error);
     }
   };
 
@@ -229,7 +264,7 @@ export function PDFScanner() {
           
           // Auto-save if enabled
           if (autoSaveEnabled) {
-           await savePdfQuestions(pdfQuestions, year, slot, part, enabledQuestionTypes);
+           await savePdfQuestions(pdfQuestions, year, selectedSlot, selectedPart, enabledQuestionTypes);
             toast.success(`💾 PDF ${pdfIndex + 1}: Questions saved to database!`);
           }
         } else {
@@ -349,7 +384,7 @@ export function PDFScanner() {
 
       let totalSaved = 0;
       for (const [year, questions] of questionsByYear) {
-        const data = await savePdfQuestions(questions, year, slot, part, enabledQuestionTypes);
+        const data = await savePdfQuestions(questions, year, selectedSlot, selectedPart, enabledQuestionTypes);
         totalSaved += data?.length || 0;
       }
 
@@ -359,8 +394,10 @@ export function PDFScanner() {
       setPdfUploads(Array.from({ length: 20 }, (_, i) => ({ file: null, year: '', id: `pdf-${i}` })));
       setSelectedExam('');
       setSelectedCourse('');
-      setSlot('');
-      setPart('');
+      setSelectedSlot('');
+      setSelectedPart('');
+      setSlots([]);
+      setParts([]);
       setQuestionTypeConfigs([
         { type: 'MCQ', enabled: false, correct_marks: 4, incorrect_marks: -1, skipped_marks: 0, partial_marks: 0, time_minutes: 3 },
         { type: 'MSQ', enabled: false, correct_marks: 4, incorrect_marks: -2, skipped_marks: 0, partial_marks: 1, time_minutes: 3 },
@@ -575,13 +612,18 @@ export function PDFScanner() {
                     <Calendar className="w-4 h-4" />
                     Slot
                   </label>
-                  <input
-                    type="text"
-                    value={slot}
-                    onChange={(e) => setSlot(e.target.value)}
-                    placeholder="e.g., Morning, Afternoon, Slot 1, Slot 2"
+                  <select
+                    value={selectedSlot}
+                    onChange={(e) => setSelectedSlot(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  />
+                  >
+                    <option value="">Select a slot (optional)</option>
+                    {slots.map((slot) => (
+                      <option key={slot.id} value={slot.slot_name}>
+                        {slot.slot_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
@@ -589,13 +631,18 @@ export function PDFScanner() {
                     <BookOpen className="w-4 h-4" />
                     Part
                   </label>
-                  <input
-                    type="text"
-                    value={part}
-                    onChange={(e) => setPart(e.target.value)}
-                    placeholder="e.g., Part A, Part B, Section 1, Section 2"
+                  <select
+                    value={selectedPart}
+                    onChange={(e) => setSelectedPart(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  />
+                  >
+                    <option value="">Select a part (optional)</option>
+                    {parts.map((part) => (
+                      <option key={part.id} value={part.part_name}>
+                        {part.part_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               
@@ -787,9 +834,19 @@ export function PDFScanner() {
               <p className="text-blue-800 font-medium">
                 📊 Ready to process: {validPdfs.length} PDFs
               </p>
-              {slot && part && (
+              {selectedSlot && selectedPart && (
                 <p className="text-blue-600 text-sm mt-1">
-                  📋 Slot: {slot} | Part: {part}
+                  📋 Slot: {selectedSlot} | Part: {selectedPart}
+                </p>
+              )}
+              {selectedSlot && !selectedPart && (
+                <p className="text-blue-600 text-sm mt-1">
+                  📋 Slot: {selectedSlot}
+                </p>
+              )}
+              {!selectedSlot && selectedPart && (
+                <p className="text-blue-600 text-sm mt-1">
+                  📋 Part: {selectedPart}
                 </p>
               )}
               {enabledQuestionTypes.length > 0 && (
